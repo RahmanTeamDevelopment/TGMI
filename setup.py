@@ -1,14 +1,13 @@
 from setuptools import setup
 
 setup(
-    name = '...',
+    name = 'TGMI',
     version = '0.1.0',
-    description = '...',
-    url = '...',
+    description = 'Utilities for software development (TGMI)',
+    url = 'https://github.com/RahmanTeamDevelopment/TGMI',
     author = 'Marton Munz',
     author_email = 'munzmarci@gmail.com',
     license = 'MIT',
-    packages=[ ],
-    scripts=[ ],
+    packages=['tgmi'],
     zip_safe=False
 )
