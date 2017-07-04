@@ -31,10 +31,10 @@ unittest: install
 	@echo ''
 	@pytest test/unit
 
-test: pep8 unittest
+test: pep8 flake8 unittest
 	@echo ''
 	@echo 'Finished running all tests'
 	@echo ''
 
 test_coverage:
-	pytest --cov=coverview test
+	py.test --cov-report term-missing --cov=env/lib/python2.7/site-packages/tgmi/ test/
