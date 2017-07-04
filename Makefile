@@ -1,5 +1,7 @@
 PY=tgmi/*.py
 PEP8=pep8 --max-line-length=120
+FLAKE8=flake8 --max-line-length=120
+PYLINT=pylint --max-line-length=120 -d C0111
 
 clean:
 	pip uninstall -y TGMI
@@ -10,6 +12,12 @@ cleanAll: clean
 
 pep8:
 	${PEP8} ${PY}
+
+flake8:
+	${FLAKE8} ${PY}
+
+pylint:
+	${PYLINT} ${PY}
 
 install:
 	./install.sh

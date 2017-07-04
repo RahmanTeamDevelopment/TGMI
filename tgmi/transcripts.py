@@ -1,11 +1,12 @@
 """Module for working with transcripts, creating transcript DBs and reading from transcript DB"""
 
 from __future__ import division
-import gzip
 from operator import itemgetter
-import pysam
+
 import datetime
+import gzip
 import os
+import pysam
 
 
 class Transcript(object):
