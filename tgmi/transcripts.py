@@ -1,16 +1,16 @@
 """Module for working with transcripts, creating transcript DBs and reading from transcript DB"""
 
 from __future__ import division
-from operator import itemgetter
-
-import datetime
 import gzip
-import os
+from operator import itemgetter
 import pysam
+import datetime
+import os
 
 
 class Transcript(object):
     """Class for a single transcript"""
+
 
     def __init__(self, id=None, version=None, hgnc_id=None, chrom=None, start=None, end=None, strand=None, exons=None,
                  coding_start=None, coding_end=None, cdna_length=None, prot_length=None, info=None):
@@ -37,6 +37,7 @@ class Transcript(object):
         self.prot_length = prot_length
         self.info = info
 
+
     def read_from_database_record(self, record):
         """Read transcript from transcript database record
 
@@ -56,46 +57,78 @@ class Transcript(object):
         # Finalize transcript
         self.finalize()
 
+
     def set_info(self):
         """Calculate and sets the info field"""
 
-        if self._any_unset(['strand', 'start', 'end', 'exons', 'cdna_length', 'prot_length']):
-            return
-
+        if self._any_unset(['strand', 'start', 'end', 'exons', 'cdna_length', 'prot_length']): return
         self.info = '+/' if self.strand == '+' else '-/'
         self.info += str(round((self.end - self.start + 1) / 1000, 1)) + 'kb/'
         self.info += str(len(self.exons)) + '/' + str(round(self.cdna_length / 1000, 1)) + 'kb/' + str(self.prot_length)
+
 
     def cds_regions(self):
         """Return list of CDS regions
 
             Notes:
-                Returned is a list of (x,y) pairs where coordinates x and y are 0-based,
-                inclusive for x and exclusive for y
+                Returned is a list of (x,y) pairs where coordinates x and y are 0-based, inclusive for x and exclusive for y
         """
-        if self._any_unset(['exons', 'coding_start', 'coding_end', 'strand']):
+
+        if self._any_unset(['exons', 'coding_start', 'coding_end']):
             return
 
         ret = []
-
-        for i in range(len(self.exons)):
-            exon = self.exons[i]
+        for exon in self.exons:
             cds_region = exon.get_cds(self.coding_start, self.coding_end)
             if cds_region is not None:
                 ret.append(cds_region)
         return ret
 
-    def get_cdna_length(self):
-        """Return cDNA length"""
-        if self.exons is None:
+
+    def utr5_regions(self):
+        """Return list of UTR5 regions
+
+            Notes:
+                Returned is a list of (x,y) pairs where coordinates x and y are 0-based, inclusive for x and exclusive for y
+        """
+
+        if self._any_unset(['exons', 'coding_start', 'strand']):
             return
 
-        ret = 0
-
-        for e in self.exons:
-            ret += e.length()
-
+        ret = []
+        for exon in self.exons:
+            utr5_region = exon.get_utr5(self.coding_start, self.strand)
+            if utr5_region is not None:
+                ret.append(utr5_region)
         return ret
+
+
+    def utr3_regions(self):
+        """Return list of UTR3 regions
+
+            Notes:
+                Returned is a list of (x,y) pairs where coordinates x and y are 0-based, inclusive for x and exclusive for y
+        """
+
+        if self._any_unset(['exons', 'coding_end', 'strand']):
+            return
+
+        ret = []
+        for exon in self.exons:
+            utr3_region = exon.get_utr3(self.coding_end, self.strand)
+            if utr3_region is not None:
+                ret.append(utr3_region)
+        return ret
+
+
+    def get_cdna_length(self):
+        """Return cDNA length"""
+
+        if self.exons is None: return
+        ret = 0
+        for e in self.exons: ret += e.length()
+        return ret
+
 
     def get_cds_length(self):
         """Return CDS length"""
@@ -108,6 +141,7 @@ class Transcript(object):
             ret += cds_end - cds_start
         return ret
 
+
     def get_protein_length(self):
         """Return protein length"""
 
@@ -116,6 +150,7 @@ class Transcript(object):
             return
         return int((cds_length - 3) / 3)
 
+
     def finalize(self):
         """Finalize transcript (set cDNA and protein length, start/end coordinates and info)"""
 
@@ -123,8 +158,7 @@ class Transcript(object):
         self.cdna_length = self.get_cdna_length()
         self.prot_length = self.get_protein_length()
 
-        if self._any_unset(['cdna_length', 'prot_length', 'strand', 'exons']):
-            return
+        if self._any_unset(['cdna_length', 'prot_length', 'strand', 'exons']): return
 
         # Set start and end fields of transcript
         if self.strand == '+':
@@ -137,15 +171,18 @@ class Transcript(object):
         # Set info field
         self.set_info()
 
+
     def _any_unset(self, fields):
         """Check if any of the required fields is None"""
 
         return any([getattr(self, f) is None for f in fields])
 
+
     def __str__(self):
         """String representation"""
 
         return self.id + '(' + self.chrom + ':' + str(self.start) + '-' + str(self.end) + ')[' + self.info + ']'
+
 
     __repr__ = __str__
 
@@ -153,21 +190,24 @@ class Transcript(object):
 class Exon(object):
     """Class for a single exon"""
 
+
     def __init__(self, s):
         """Constructor of Exon class
 
             Notes:
-                s is a string of the syntax "start-end", where coordinates are 0-based,
-                inclusive for start, exclusive for end
+                s is a string of the syntax "start-end", where coordinates are 0-based, inclusive for start, exclusive for end
         """
+
         [s, e] = s.split('-')
         self.start = int(s)
         self.end = int(e)
+
 
     def length(self):
         """Return length of exon"""
 
         return self.end - self.start
+
 
     def get_cds(self, coding_start, coding_end):
         """Return CDS interval or None if there is no CDS in the exon"""
@@ -182,12 +222,41 @@ class Exon(object):
         cds_end = min(self.end - 1, coding_max) + 1
         return (cds_start, cds_end)
 
+
+    def get_utr5(self, coding_start, strand):
+        """Return UTR5 interval or None if there is no UTR5 in the exon"""
+
+        if strand == '+':
+            if self.start >= coding_start:
+                return
+            return (self.start, min(coding_start, self.end - 1) + 1)
+        else:
+            if self.end - 1 <= coding_start:
+                return
+            return (max(self.start, coding_start), self.end)
+
+
+    def get_utr3(self, coding_end, strand):
+        """Return UTR3 interval or None if there is no UTR3 in the exon"""
+
+        if strand == '+':
+            if self.end - 1 <= coding_end:
+                return
+            return (max(self.start, coding_end), self.end)
+        else:
+            if self.start >= coding_end:
+                return
+            return (self.start, min(self.end - 1, coding_end) + 1)
+
+
     def __str__(self):
         """String representation"""
 
         return 'exon:' + str(self.start) + '-' + str(self.end)
 
+
     __repr__ = __str__
+
 
 
 class TranscriptDB(object):
@@ -195,6 +264,7 @@ class TranscriptDB(object):
 
     # Allowed chromosome names
     allowed_chroms = map(str, range(1, 24)) + ['X', 'Y', 'MT']
+
 
     def __init__(self, filename):
         """Constructor of the TranscriptDB class"""
@@ -208,6 +278,7 @@ class TranscriptDB(object):
         self._data = dict()
         self._read_header()
 
+
     def read(self):
         """Read transcript database from file"""
 
@@ -218,10 +289,12 @@ class TranscriptDB(object):
             cols = line.split('\t')
             self._data[cols[self._columns.index('ID')]] = line
 
+
     def contains(self, transcript_id):
         """Return True if transcript ID is found in the database"""
 
         return transcript_id in self._data
+
 
     def by_id(self, transcript_id):
         """Return transcript by ID"""
@@ -229,6 +302,7 @@ class TranscriptDB(object):
         ret = Transcript()
         ret.read_from_database_record(self._to_dict(self._data[transcript_id]))
         return ret
+
 
     def search_position(self, chrom, pos):
         """Search transcript database by genomic position"""
@@ -242,6 +316,7 @@ class TranscriptDB(object):
             ret.append(t)
         return ret
 
+
     def generator(self):
         """Return transcripts as a generator object"""
 
@@ -252,6 +327,7 @@ class TranscriptDB(object):
             ret = Transcript()
             ret.read_from_database_record(self._to_dict(line))
             yield ret
+
 
     def _read_header(self):
         """Read header information from file"""
@@ -271,6 +347,7 @@ class TranscriptDB(object):
             else:
                 self._columns = line[1:].split('\t')
 
+
     def _to_dict(self, line):
         """Convert line to dictionary"""
 
@@ -282,8 +359,10 @@ class TranscriptDB(object):
         return ret
 
 
+
 class TranscriptDBWriter(object):
     """Class for creating new transcript database"""
+
 
     def __init__(self, fn, source='', build='', columns=[]):
         """Constructor of the TranscriptDBWriter class"""
@@ -296,6 +375,7 @@ class TranscriptDBWriter(object):
         self.idx_chrom = self._columns.index('chrom')
         self.idx_start = self._columns.index('start')
         self.idx_end = self._columns.index('end')
+
 
     def add(self, transcript):
         """Add transcript to DB"""
@@ -310,6 +390,7 @@ class TranscriptDBWriter(object):
                 record.append(str(getattr(transcript, c.lower())))
         self._records[transcript.chrom].append(record)
 
+
     def _sort_records(self):
         """Sort records by chrom, start, end"""
 
@@ -319,12 +400,14 @@ class TranscriptDBWriter(object):
             if c in self._records:
                 self._records[c] = sorted(self._records[c], key=itemgetter(idx_start, idx_end))
 
+
     def _index_with_tabix(self):
         """Compress and index output file by Tabix"""
 
         pysam.tabix_compress(self._fn + '_tmp', self._fn + '.gz', force=True)
         pysam.tabix_index(self._fn + '.gz', seq_col=self.idx_chrom, start_col=self.idx_start, end_col=self.idx_end,
                           meta_char='#', force=True)
+
 
     def finalize(self):
         """Write to file, compress and index, clean up"""
