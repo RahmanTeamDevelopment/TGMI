@@ -10,7 +10,6 @@ from tgmi.transcripts import Transcript, Exon, TranscriptDB, TranscriptDBWriter
 class TestTranscript(TestCase):
     """Tests for the Transcript class"""
 
-
     def test_read_from_database_record(self):
         record = {'one': 'x', 'two': 'y', 'start': '12345', 'exons': '10000-20000,30000-40000'}
         transcript = Transcript()
@@ -29,7 +28,6 @@ class TestTranscript(TestCase):
         assert transcript.exons[0].start == 10000
         assert transcript.exons[1].end == 40000
 
-
     def test_set_info(self):
         transcript = Transcript(strand='-', start=10000, end=19600)
         transcript.exons = [Exon('1-2'), Exon('3-4'), Exon('5-6')]
@@ -38,7 +36,6 @@ class TestTranscript(TestCase):
 
         transcript.set_info()
         assert transcript.info == '-/9.6kb/3/8.1kb/1200'
-
 
     def test_cds_regions(self):
         transcript = Transcript()
@@ -59,13 +56,68 @@ class TestTranscript(TestCase):
         assert cds_regions[1] == (30, 40)
         assert cds_regions[2] == (15, 20)
 
+    def test_utr5_regions(self):
+
+        transcript = Transcript()
+        record = {'strand': '+', 'exons': '10000-20000,25000-26000,30000-40000,50000-60000', 'coding_start': '25500',
+                  'coding_end': '53000'}
+        transcript.read_from_database_record(record)
+        utr5_regions = transcript.utr5_regions()
+        assert len(utr5_regions) == 2
+        assert utr5_regions[0] == (10000, 20000)
+        assert utr5_regions[1] == (25000, 25500)
+
+        transcript = Transcript()
+        record = {'strand': '+', 'exons': '10000-20000,30000-40000,50000-60000', 'coding_start': '10000', 'coding_end': '35000'}
+        transcript.read_from_database_record(record)
+        assert transcript.utr5_regions() == []
+
+        transcript = Transcript()
+        record = {'strand': '-', 'exons': '70-80, 50-60, 30-40, 10-20', 'coding_start': '55', 'coding_end': '15'}
+        transcript.read_from_database_record(record)
+        utr5_regions = transcript.utr5_regions()
+        assert len(utr5_regions) == 2
+        assert utr5_regions[0] == (70, 80)
+        assert utr5_regions[1] == (56, 60)
+
+        transcript = Transcript()
+        record = {'strand': '-', 'exons': '50-60, 30-40, 10-20', 'coding_start': '59', 'coding_end': '15'}
+        transcript.read_from_database_record(record)
+        assert transcript.utr5_regions() == []
+
+    def test_utr3_regions(self):
+
+        transcript = Transcript()
+        record = {'strand': '+', 'exons': '10000-20000,25000-26000,30000-40000,50000-60000', 'coding_start': '15000', 'coding_end': '38000'}
+        transcript.read_from_database_record(record)
+        utr3_regions = transcript.utr3_regions()
+        assert len(utr3_regions) == 2
+        assert utr3_regions[0] == (38001, 40000)
+        assert utr3_regions[1] == (50000, 60000)
+
+        transcript = Transcript()
+        record = {'strand': '+', 'exons': '10000-20000,30000-40000,50000-60000', 'coding_start': '14000', 'coding_end': '60000'}
+        transcript.read_from_database_record(record)
+        assert transcript.utr3_regions() == []
+
+        transcript = Transcript()
+        record = {'strand': '-', 'exons': '70-80, 50-60, 30-40, 10-20', 'coding_start': '55', 'coding_end': '35'}
+        transcript.read_from_database_record(record)
+        utr3_regions = transcript.utr3_regions()
+        assert len(utr3_regions) == 2
+        assert utr3_regions[0] == (30, 35)
+        assert utr3_regions[1] == (10, 20)
+
+        transcript = Transcript()
+        record = {'strand': '-', 'exons': '50-60, 30-40, 10-20', 'coding_start': '55', 'coding_end': '10'}
+        transcript.read_from_database_record(record)
+        assert transcript.utr3_regions() == []
 
     def test_get_cdna_length(self):
         transcript = Transcript()
         record = {'strand': '+', 'exons': '10-20,100-200,1000-2000'}
         transcript.read_from_database_record(record)
         assert transcript.get_cdna_length() == 1110
-
 
     def test_get_cds_length(self):
         transcript = Transcript()
@@ -78,7 +130,6 @@ class TestTranscript(TestCase):
         transcript.read_from_database_record(record)
         assert transcript.get_cds_length() == 21
 
-
     def test_get_protein_length(self):
         transcript = Transcript()
         record = {'strand': '+', 'exons': '10-20,30-40,50-60', 'coding_start': '16', 'coding_end': '53'}
@@ -89,7 +140,6 @@ class TestTranscript(TestCase):
         record = {'strand': '-', 'exons': '50-60,30-40,10-20', 'coding_start': '55', 'coding_end': '15'}
         transcript.read_from_database_record(record)
         assert transcript.get_protein_length() == 6
-
 
     def test_finalize(self):
 
@@ -109,7 +159,6 @@ class TestTranscript(TestCase):
         assert transcript.start == 10
         assert transcript.end == 60
 
-
     def test_any_unset(self):
         transcript = Transcript()
         assert transcript._any_unset(['start','end'])
@@ -118,10 +167,8 @@ class TestTranscript(TestCase):
         assert not transcript._any_unset(['start', 'end'])
 
 
-
 class TestExon():
     """Tests for the Exon class"""
-
 
     def test_get_cds_forward_stranded(self):
         coding_start = 1000
@@ -137,7 +184,6 @@ class TestExon():
         assert Exon('1000-3000').get_cds(coding_start, coding_end) == (1000, 2001)
         assert Exon('500-2001').get_cds(coding_start, coding_end) == (1000, 2001)
 
-
     def test_get_cds_reverse_stranded(self):
         coding_start = 2000
         coding_end = 1000
@@ -152,22 +198,53 @@ class TestExon():
         assert Exon('1000-3000').get_cds(coding_start, coding_end) == (1000, 2001)
         assert Exon('500-2001').get_cds(coding_start, coding_end) == (1000, 2001)
 
+    def test_get_utr5_forward_stranded(self):
+        assert Exon('300-400').get_utr5(1000, '+') == (300, 400)
+        assert Exon('800-1000').get_utr5(1000, '+') == (800, 1000)
+        assert Exon('800-1001').get_utr5(1000, '+') == (800, 1000)
+        assert Exon('800-1500').get_utr5(1000, '+') == (800, 1000)
+        assert Exon('998-1200').get_utr5(1000, '+') == (998, 1000)
+        assert Exon('1000-1200').get_utr5(1000, '+') is None
+        assert Exon('2000-3200').get_utr5(1000, '+') is None
+
+    def test_get_utr5_reverse_stranded(self):
+        assert Exon('300-400').get_utr5(1000, '-') is None
+        assert Exon('500-1000').get_utr5(1000, '-') is None
+        assert Exon('500-1100').get_utr5(1000, '-') == (1001, 1100)
+        assert Exon('2000-3000').get_utr5(1000, '-') == (2000, 3000)
+        assert Exon('5000-5500').get_utr5(1000, '-') == (5000, 5500)
+        assert Exon('1000-1300').get_utr5(1000, '-') == (1001, 1300)
+
+    def test_get_utr3_forward_stranded(self):
+        assert Exon('300-400').get_utr3(1000, '+') is None
+        assert Exon('800-1000').get_utr3(1000, '+') is None
+        assert Exon('800-1001').get_utr3(1000, '+') is None
+        assert Exon('800-1002').get_utr3(1000, '+') == (1001, 1002)
+        assert Exon('800-1200').get_utr3(1000, '+') == (1001, 1200)
+        assert Exon('1000-1200').get_utr3(1000, '+') == (1001, 1200)
+        assert Exon('1400-1600').get_utr3(1000, '+') == (1400, 1600)
+
+    def test_get_utr3_reverse_stranded(self):
+        assert Exon('300-400').get_utr3(1000, '-') == (300, 400)
+        assert Exon('800-1000').get_utr3(1000, '-') == (800, 1000)
+        assert Exon('800-1001').get_utr3(1000, '-') == (800, 1000)
+        assert Exon('800-1300').get_utr3(1000, '-') == (800, 1000)
+        assert Exon('999-1300').get_utr3(1000, '-') == (999, 1000)
+        assert Exon('1000-1300').get_utr3(1000, '-') is None
+        assert Exon('1200-1500').get_utr3(1000, '-') is None
 
 
 class TestTranscriptDBWriter(TestCase):
     """Tests for the TranscriptDBWriter class"""
 
-
     def setUp(self):
         self.fn = str(uuid.uuid4())
         self.tdb_writer = TranscriptDBWriter(self.fn, source='ToolName x.x.x', build='GRCh37', columns=['id', 'chrom', 'exons', 'START', 'end'])
-
 
     def tearDown(self):
         if os.path.isfile(self.fn + '.gz'):
             os.remove(self.fn + '.gz')
             os.remove(self.fn + '.gz.tbi')
-
 
     def test_init(self):
         assert self.tdb_writer.idx_chrom == 1
@@ -178,14 +255,12 @@ class TestTranscriptDBWriter(TestCase):
             assert k in self.tdb_writer._records
         assert len(self.tdb_writer._records['7']) == 0
 
-
     def test_add(self):
         transcript = Transcript(id='xyz', chrom='11', strand='+', start=130, end=580)
         transcript.exons = [Exon('100-200'), Exon('300-400'), Exon('500-600')]
         self.tdb_writer.add(transcript)
 
         assert self.tdb_writer._records['11'][0] == ['xyz', '11', '100-200,300-400,500-600', 130, 580]
-
 
     def test_sort_records(self):
 
@@ -205,7 +280,6 @@ class TestTranscriptDBWriter(TestCase):
         assert self.tdb_writer._records['8'][1][-1] == 580
         assert self.tdb_writer._records['8'][2][-1] == 880
 
-
     def test_index_with_tabix(self):
         out = open('.' + self.tdb_writer._fn + '_tmp', 'w')
         out.write('#header\n')
@@ -213,7 +287,6 @@ class TestTranscriptDBWriter(TestCase):
         assert os.path.isfile(self.fn + '.gz')
         assert os.path.isfile(self.fn + '.gz.tbi')
         os.remove('.' + self.tdb_writer._fn + '_tmp')
-
 
     def test_finalize(self):
         t1 = Transcript(id='1', chrom='8', strand='+', start=130, end=580, exons=[])
@@ -242,10 +315,8 @@ class TestTranscriptDBWriter(TestCase):
         assert order == [40, 580, 880, 900]
 
 
-
 class TestTranscriptDB(TestCase):
     """Tests for the TranscriptDB class"""
-
 
     def setUp(self):
         self.fn = str(uuid.uuid4())
@@ -259,11 +330,9 @@ class TestTranscriptDB(TestCase):
 
         self.tdb = TranscriptDB(self.fn + '.gz')
 
-
     def tearDown(self):
         os.remove(self.fn + '.gz')
         os.remove(self.fn + '.gz.tbi')
-
 
     def test_read(self):
         assert len(self.tdb._data) == 0
@@ -271,12 +340,10 @@ class TestTranscriptDB(TestCase):
         assert len(self.tdb._data) == 4
         assert self.tdb._data['t4'] == '\t'.join(['t4','8', '+', '30', '40'])
 
-
     def test_contains(self):
         self.tdb.read()
         assert self.tdb.contains('t2')
         assert not self.tdb.contains('t7')
-
 
     def test_by_id(self):
         self.tdb.read()
@@ -285,18 +352,15 @@ class TestTranscriptDB(TestCase):
         assert self.tdb.by_id('t1').start == 130
         assert self.tdb.by_id('t4').strand == '+'
 
-
     def test_search_position(self):
         hits = [t.id for t in self.tdb.search_position('8', 850)]
         hits.sort()
         assert hits == ['t2', 't3']
         assert [t.id for t in self.tdb.search_position('8', 33)] == ['t4']
 
-
     def test_generator(self):
         order = [t.id for t in self.tdb.generator()]
         assert order == ['t4', 't1', 't3', 't2']
-
 
     def test_read_header(self):
         self.tdb.source = ''
@@ -304,7 +368,6 @@ class TestTranscriptDB(TestCase):
         self.tdb._read_header()
         assert self.tdb.source == 'xyz'
         assert self.tdb.build == 'GRCh37'
-
 
     def test_to_dict(self):
         d = self.tdb._to_dict('\t'.join(['t4','8', '+', '30', '40']))
