@@ -9,5 +9,6 @@ setup(
     author_email = 'munzmarci@gmail.com',
     license = 'MIT',
     packages=['tgmi'],
-    zip_safe=False
+    zip_safe=False,
+    install_requires=["pysam==0.7.7"]
 )
