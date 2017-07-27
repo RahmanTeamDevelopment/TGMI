@@ -1,0 +1,14 @@
+from setuptools import setup
+
+setup(
+    name = '...',
+    version = '0.1.0',
+    description = '...',
+    url = '...',
+    author = 'RahmanTeam',
+    author_email = 'rahmanlab@icr.ac.uk',
+    license = 'MIT',
+    packages=[ ],
+    scripts=[ ],
+    zip_safe=False
+)

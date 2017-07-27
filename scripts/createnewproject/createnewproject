@@ -1,0 +1,35 @@
+#!/bin/bash
+
+if [ $# -eq 0 ]; then
+   echo "No project name provided"
+   echo "Usage: ./createnewproject myproject"
+   exit 1
+fi
+
+scriptdir="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+targetdir=$(pwd)
+projectdir=$targetdir/$1
+lower=$(echo $1 | awk '{print tolower($0)}')
+
+# Create directory/package structure
+mkdir $projectdir
+mkdir $projectdir/bin $projectdir/doc $projectdir/test $projectdir/$lower
+touch $projectdir/$lower/__init__.py
+
+# setup.py, install.sh, LICENCE, .gitignore, README.md, Makefile
+cp $scriptdir/templates/setup.py.minimal $projectdir/setup.py
+cp $scriptdir/templates/gitignore.minimal $projectdir/.gitignore
+cp $scriptdir/templates/MIT_LICENCE $projectdir/LICENCE
+cp $scriptdir/templates/install.sh $projectdir/
+touch $projectdir/README.md
+touch $projectdir/Makefile
+
+# Initialize virtualenv
+cd $projectdir
+virtualenv -p python2.7 --no-site-packages --always-copy env &> /dev/null
+
+# Initialize git repository
+git init &> /dev/null
+git add * &> /dev/null
+git add .gitignore
+git commit -m "Initial commit" &> /dev/null
